@@ -1,6 +1,6 @@
-bootstrap/data/*
-bootstrap/library/*
-bootstrap/software/*
+boot/data/*
+boot/library/*
+boot/software/*
 data/*
 model/*
 output/*
