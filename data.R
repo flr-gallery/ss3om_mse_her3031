@@ -13,8 +13,6 @@ mkdir("data")
 library(ss3om)
 library(mse)
 
-source("utilities.R")
-
 # - SET base case run
 
 mkdir("data/run")
@@ -22,39 +20,35 @@ cp("boot/data/*", "data/run/")
 
 # RUN ss3 in data/run
 
-# - SETUP grid of alternative runs
+# - LOAD om
 
-mkdir("data/grid")
+run <- readFLomss3('data/run/')
 
-sce <- list(
-  # Natural mortality multiplier, MG_parms["NatM_p_*_Fem_GP_1",]
-  M=c(0.8, 1, 1.2),
-  # steepness, SR_parms["SR_BH_steep",]
-  steepness=c(0.725, 0.775, 0.825)
-  )
+# - RUN hindcast
 
-grid <- setss3grid(sce)
+hin <- propagate(run, 500)
 
-# RUN ss3 in grid/*
-# linux $ ls -d */ | parallel -j4 --progress cd {} '&&' ss3 '&&' packss3run
+srdevs <- rlnormar1(500, 0, sdlog=sqrt(yearVars(residuals(sr(run)))),
+  rho=rho(residuals(sr(run))), years=2000:2022)
 
-# - LOAD results
+om <- fwd(hin, sr=rec(run), deviances=srdevs,
+  catch=catch(run)[, ac(2000:2022)])
 
-# RUN
+# CHECK
 
-run <- readFLSss3(dir="data/run", range=c(minfbar=3, maxfbar=7))
+ssb(run)[,'2022']
+iterMeans(ssb(om)[,'2022'])
+iterMedians(ssb(om)[,'2022'])
 
-# BUILD OM
+# SET future 
 
-om <- loadOM(dir="data/grid")
+futdevs <- rlnormar1(500, 0, sdlog=sqrt(yearVars(residuals(sr(run)))),
+  rho=rho(residuals(sr(run))), years=2023:2042)
 
-oem <- loadOEM(dir="data/grid")
+om <- fwdWindow(om, end=2042, deviances=futdevs)
 
-results <- loadRES(dir="data/grid")
-
-
-
+# - LOAD OEM
 
 # SAVE
 
-save(run, om, file="data/data.rda", compress="xz")
+save(om, file="data/data.rda", compress="xz")
